@@ -14,13 +14,15 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- */ 
+ */
 
 #include <usual/time.h>
 
+#include <usual/string.h>
+
 #include <stdio.h>
 
-char *format_time_ms(usec_t time, char *dst, unsigned dstlen)
+char *format_time_ms(usec_t time, char *dest, unsigned destlen)
 {
 	struct tm *tm, tmbuf;
 	struct timeval tv;
@@ -35,14 +37,15 @@ char *format_time_ms(usec_t time, char *dst, unsigned dstlen)
 
 	sec = tv.tv_sec;
 	tm = localtime_r(&sec, &tmbuf);
-	snprintf(dst, dstlen, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
+	snprintf(dest, destlen, "%04d-%02d-%02d %02d:%02d:%02d.%03d %s",
 		 tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
 		 tm->tm_hour, tm->tm_min, tm->tm_sec,
-		 (int)(tv.tv_usec / 1000));
-	return dst;
+		 (int)(tv.tv_usec / 1000),
+		 tzname[tm->tm_isdst > 0 ? 1 : 0]);
+	return dest;
 }
 
-char *format_time_s(usec_t time, char *dst, unsigned dstlen)
+char *format_time_s(usec_t time, char *dest, unsigned destlen)
 {
 	time_t s;
 	struct tm tbuf, *tm;
@@ -54,10 +57,11 @@ char *format_time_s(usec_t time, char *dst, unsigned dstlen)
 		s = time / USEC;
 	}
 	tm = localtime_r(&s, &tbuf);
-	snprintf(dst, dstlen, "%04d-%02d-%02d %02d:%02d:%02d",
+	snprintf(dest, destlen, "%04d-%02d-%02d %02d:%02d:%02d %s",
 		 tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
-		 tm->tm_hour, tm->tm_min, tm->tm_sec);
-	return dst;
+		 tm->tm_hour, tm->tm_min, tm->tm_sec,
+		 tzname[tm->tm_isdst > 0 ? 1 : 0]);
+	return dest;
 }
 
 
@@ -97,13 +101,13 @@ void reset_time_cache(void)
 /* 1 sec in 100 nsec units */
 #define FT_SEC 10000000LL
 
-static void ft2tv(FILETIME *src, struct timeval *dst, bool use_epoch)
+static void ft2tv(FILETIME *src, struct timeval *dest, bool use_epoch)
 {
 	ULARGE_INTEGER tmp;
 	tmp.LowPart = src->dwLowDateTime;
 	tmp.HighPart = src->dwHighDateTime;
-	dst->tv_sec = (tmp.QuadPart / FT_SEC) - (use_epoch ? UNIX_EPOCH : 0);
-	dst->tv_usec = (tmp.QuadPart % FT_SEC) / 10;
+	dest->tv_sec = (tmp.QuadPart / FT_SEC) - (use_epoch ? UNIX_EPOCH : 0);
+	dest->tv_usec = (tmp.QuadPart % FT_SEC) / 10;
 }
 
 #ifndef HAVE_GETTIMEOFDAY
@@ -127,7 +131,7 @@ int gettimeofday(struct timeval * tp, void * tzp)
 
 #ifndef HAVE_LOCALTIME_R
 
-struct tm *localtime_r(const time_t *tp, struct tm *dst)
+struct tm *localtime_r(const time_t *tp, struct tm *result)
 {
 	ULARGE_INTEGER utc;
 	FILETIME ft_utc;
@@ -145,23 +149,23 @@ struct tm *localtime_r(const time_t *tp, struct tm *dst)
 		return NULL;
 
 	/* fill struct tm */
-	dst->tm_sec = st_local.wSecond;
-	dst->tm_min = st_local.wMinute;
-	dst->tm_hour = st_local.wHour;
-	dst->tm_mday = st_local.wDay;
-	dst->tm_mon = st_local.wMonth - 1;
-	dst->tm_year = st_local.wYear - 1900;
-	dst->tm_wday = st_local.wDayOfWeek;
-	dst->tm_yday = 0;
-	dst->tm_isdst = -1;
-	return dst;
+	result->tm_sec = st_local.wSecond;
+	result->tm_min = st_local.wMinute;
+	result->tm_hour = st_local.wHour;
+	result->tm_mday = st_local.wDay;
+	result->tm_mon = st_local.wMonth - 1;
+	result->tm_year = st_local.wYear - 1900;
+	result->tm_wday = st_local.wDayOfWeek;
+	result->tm_yday = 0;
+	result->tm_isdst = -1;
+	return result;
 }
 
 #endif /* !HAVE_LOCALTIME_R */
 
 #ifndef HAVE_GETRUSAGE
 
-int getrusage(int who, struct rusage *dst)
+int getrusage(int who, struct rusage *r_usage)
 {
 	FILETIME tcreate, texit, tkern, tuser;
 	if (who != RUSAGE_SELF) {
@@ -170,11 +174,49 @@ int getrusage(int who, struct rusage *dst)
 	}
 	if (!GetProcessTimes(GetCurrentProcess(), &tcreate, &texit, &tkern, &tuser))
 		return -1;
-	ft2tv(&tuser, &dst->ru_utime, false);
-	ft2tv(&tkern, &dst->ru_stime, false);
+	ft2tv(&tuser, &r_usage->ru_utime, false);
+	ft2tv(&tkern, &r_usage->ru_stime, false);
 	return 0;
 }
 
 #endif /* !HAVE_GETRUSAGE */
 
+
 #endif /* WIN32 */
+
+#ifndef HAVE_TIMEGM
+
+time_t timegm(struct tm *tm)
+{
+#ifdef WIN32
+	return _mkgmtime(tm);
+#else
+	char buf[128], *tz, *old = NULL;
+	time_t secs;
+
+	tz = getenv("TZ");
+	if (tz) {
+		old = strdup(tz);
+		if (!old) {
+			strlcpy(buf, tz, sizeof buf);
+			old = buf;
+		}
+	}
+	setenv("TZ", "", 1);
+	tzset();
+
+	secs = mktime(tm);
+
+	if (old) {
+		setenv("TZ", old, 1);
+	} else {
+		unsetenv("TZ");
+	}
+	tzset();
+	if (old && old != buf)
+		free(old);
+	return secs;
+#endif
+}
+
+#endif /* HAVE_TIMEGM */

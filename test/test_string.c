@@ -1,4 +1,3 @@
-
 #include <usual/base.h>
 #include <string.h>
 #ifdef HAVE_LIBGEN_H
@@ -20,7 +19,7 @@
 static char *run_strlcpy(char *dst, const char *src, int size, int expres)
 {
 	int res;
-	strcpy(dst, "XXX");
+	memcpy(dst, "XXX", 4);
 	res = strlcpy(dst, src, size);
 	if (res != expres)
 		return "FAIL";
@@ -49,7 +48,7 @@ end:;
 static char *run_strlcat(char *dst, const char *src, int size, int expres)
 {
 	int res;
-	strcpy(dst, "PFX");
+	memcpy(dst, "PFX", 4);
 	res = strlcat(dst, src, size);
 	if (res != expres)
 		return "FAIL";
@@ -72,6 +71,26 @@ static void test_strlcat(void *ptr)
 end:;
 }
 
+
+/*
+ * strnlen()
+ */
+static void test_strnlen(void *p)
+{
+	tt_assert(strnlen("foobar", 0) == 0);
+	tt_assert(strnlen("foobar", 1) == 1);
+	tt_assert(strnlen("foobar", 2) == 2);
+	tt_assert(strnlen("foobar", 3) == 3);
+	tt_assert(strnlen("foobar", 4) == 4);
+	tt_assert(strnlen("foobar", 5) == 5);
+	tt_assert(strnlen("foobar", 6) == 6);
+	tt_assert(strnlen("foobar", 7) == 6);
+	tt_assert(strnlen("foobar", 8) == 6);
+	tt_assert(strnlen("foobar", 9) == 6);
+end:;
+}
+
+
 /*
  * strerror_r()
  */
@@ -84,6 +103,21 @@ static void test_strerror_r(void *p)
 	tt_assert(strlen(strerror_r(EINTR, buf, sizeof(buf))) != 0);
 end:;
 }
+/*
+ * strcmpeq
+ */
+
+static void test_strcmpeq(void *ptr)
+{
+	tt_assert(strcmpeq("foo", "foo") == true);
+	tt_assert(strcmpeq(NULL, NULL) == true);
+
+	tt_assert(strcmpeq("foo", "bar") == false);
+	tt_assert(strcmpeq("foo", NULL) == false);
+	tt_assert(strcmpeq(NULL, "foo") == false);
+end:;
+}
+
 
 /*
  * memrchr
@@ -139,6 +173,119 @@ static void test_memmem(void *p)
 	int_check(zmemm("qweqwez", "eza"), -1);
 	int_check(zmemm("qweqwez", "za"), -1);
 	int_check(zmemm("qweqwez", "a"), -1);
+end:;
+}
+
+/*
+ * mempcpy
+ */
+
+static void test_mempcpy(void *p)
+{
+	char buf[128];
+	memset(buf, 0, sizeof buf);
+	tt_assert(mempcpy(buf, "xx", 0) == buf);  str_check(buf, "");
+	tt_assert(mempcpy(buf, "xx", 1) == buf+1);  str_check(buf, "x");
+	tt_assert(mempcpy(buf, "yy", 2) == buf+2);  str_check(buf, "yy");
+end:;
+}
+
+/*
+ * strpcpy
+ */
+
+static int run_strpcpy(char *dst, const char *src, int size)
+{
+	char *res;
+	memcpy(dst, "XXX", 4);
+	res = strpcpy(dst, src, size);
+	if (res == NULL) {
+		if (size == 0) {
+			if (strcmp(dst, "XXX") != 0)
+				return -10;
+		} else {
+			if (memcmp(dst, src, size - 1) != 0)
+				return -11;
+			if (dst[size-1] !=  '\0')
+				return -12;
+		}
+		return -1;
+	}
+	if (*res != '\0')
+		return -13;
+	if (memcmp(dst, src, res-dst) != 0)
+		return -14;
+	if (res < dst)
+		return -15;
+	return res - dst;
+}
+
+static void test_strpcpy(void *p)
+{
+	char buf[128];
+	memset(buf, 0, sizeof buf);
+	int_check(run_strpcpy(buf, "", 0), -1);
+	int_check(run_strpcpy(buf, "", 1), 0);
+	int_check(run_strpcpy(buf, "a", 0), -1);
+	int_check(run_strpcpy(buf, "a", 1), -1);
+	int_check(run_strpcpy(buf, "a", 2), 1);
+	int_check(run_strpcpy(buf, "asd", 1), -1);
+	int_check(run_strpcpy(buf, "asd", 2), -1);
+	int_check(run_strpcpy(buf, "asd", 3), -1);
+	int_check(run_strpcpy(buf, "asd", 4), 3);
+	int_check(run_strpcpy(buf, "asd", 5), 3);
+end:;
+}
+
+/*
+ * strpcat
+ */
+
+static int run_strpcat(char *dst, const char *src, int size)
+{
+	char *res;
+	char copydst[1024];
+	char copy[1024];
+	strlcpy(copydst, dst, sizeof copy);
+	strlcpy(copy, dst, sizeof copy);
+	strlcat(copy, src, sizeof copy);
+	res = strpcat(dst, src, size);
+	if (res == NULL) {
+		if (size == 0) {
+			if (strcmp(dst, copydst) != 0)
+				return -10;
+		} else {
+			if (memcmp(dst, copy, size - 1) != 0)
+				return -11;
+			if (dst[size-1] !=  '\0')
+				return -12;
+		}
+		return -1;
+	}
+	if (*res != '\0')
+		return -13;
+	if (memcmp(dst, copy, res-dst) != 0)
+		return -14;
+	if (res < dst)
+		return -15;
+	return res - dst;
+}
+
+static void test_strpcat(void *p)
+{
+	char buf[128];
+	memset(buf, 0, sizeof buf);
+	int_check(run_strpcat(buf, "", 0), -1);
+	int_check(run_strpcat(buf, "", 1), 0);
+	int_check(run_strpcat(buf, "a", 1), -1);
+	int_check(run_strpcat(buf, "a", 2), 1);
+	str_check(buf, "a");
+
+	int_check(run_strpcat(buf, "b", 0), -1);
+	int_check(run_strpcat(buf, "b", 1), -12);
+	int_check(run_strpcat(buf, "b", 2), -1);
+	int_check(run_strpcat(buf, "b", 3), 2);
+	str_check(buf, "ab");
 end:;
 }
 
@@ -237,7 +384,7 @@ static const char *lshow(const struct StrList *sl)
 static void test_strlist(void *p)
 {
 	struct StrList *sl = NULL;
-	const char *s;
+	char *s;
 	sl = strlist_new(NULL);
 	str_check(lshow(sl), "");
 	strlist_append(sl, "1");
@@ -368,7 +515,7 @@ static const char *wrap_strtonum(const char *s, long long minval, long long maxv
 	if (res1 != res)
 		return "EH";
 	if (!err) {
-		snprintf(buf, sizeof buf, "%lld", res);
+		snprintf(buf, sizeof buf, "%" PRId64, (int64_t)res);
 		return buf;
 	}
 	snprintf(buf, sizeof buf, "E:%s", err);
@@ -444,6 +591,10 @@ static void test_strsep(void *p)
 end:;
 }
 
+#pragma GCC diagnostic push
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 7
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#endif
 
 static void test_snprintf(void *p)
 {
@@ -458,6 +609,8 @@ static void test_snprintf(void *p)
 end:;
 }
 
+#pragma GCC diagnostic pop
+
 static void test_asprintf(void *p)
 {
 	char *res = NULL;
@@ -468,6 +621,7 @@ static void test_asprintf(void *p)
 end:;
 }
 
+_PRINTF(2,3)
 static int tmp_asprintf(char **dst, const char *fmt, ...)
 {
 	int res;
@@ -494,13 +648,18 @@ end:;
 struct testcase_t string_tests[] = {
 	{ "strlcpy", test_strlcpy },
 	{ "strlcat", test_strlcat },
+	{ "strnlen", test_strnlen },
 	{ "strerror_r", test_strerror_r },
+	{ "strcmpeq", test_strcmpeq },
 	{ "memrchr", test_memrchr },
 	{ "memmem", test_memmem },
 	{ "mempbrk", test_mempbrk },
 	{ "memcspn", test_memcspn },
 	{ "memspn", test_memspn},
+	{ "mempcpy", test_mempcpy },
 	{ "strsep", test_strsep },
+	{ "strpcpy", test_strpcpy },
+	{ "strpcat", test_strpcat },
 	{ "basename", test_basename },
 	{ "dirname", test_dirname },
 	{ "strlist", test_strlist },
@@ -512,4 +671,3 @@ struct testcase_t string_tests[] = {
 	{ "vasprintf", test_vasprintf },
 	END_OF_TESTCASES
 };
-

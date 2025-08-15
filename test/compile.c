@@ -1,12 +1,12 @@
 #include <usual/aatree.h>
 #include <usual/base.h>
+#include <usual/spinlock.h>
 #include <usual/cbtree.h>
 #include <usual/cfparser.h>
 #include <usual/hashing/crc32.h>
 #include <usual/daemon.h>
 #include <usual/endian.h>
 #include <usual/err.h>
-#include <usual/event.h>
 #include <usual/fileutil.h>
 #include <usual/hashtab-impl.h>
 #include <usual/heap.h>
@@ -17,12 +17,14 @@
 #include <usual/crypto/md5.h>
 #include <usual/crypto/csrandom.h>
 #include <usual/misc.h>
+#include <usual/pthread.h>
 #include <usual/safeio.h>
 #include <usual/shlist.h>
 #include <usual/signal.h>
 #include <usual/slab.h>
 #include <usual/socket.h>
 #include <usual/statlist.h>
+#include <usual/statlist_ts.h>
 #include <usual/string.h>
 #include <usual/tls/tls.h>
 #include <usual/time.h>
@@ -50,8 +52,6 @@ int main(void)
 	cbtree_destroy(cbtree);
 	daemonize(NULL, false);
 	hash_lookup3("foo", 3);
-	if (!event_init())
-		log_debug("test");
 	if (!parse_ini_file("foo", NULL, NULL))
 		log_debug("test");
 	log_stats("1");
@@ -64,4 +64,3 @@ int main(void)
 	tls_init();
 	return 0;
 }
-

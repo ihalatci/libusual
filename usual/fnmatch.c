@@ -204,6 +204,7 @@ loop:
 			if (*p == '\0')
 				return FNM_NOMATCH;
 		}
+		/* fallthrough */
 	default:
 		/* match single char */
 		if (*s == '/' && *p == '\0' && (flags & FNM_LEADING_DIR))
@@ -236,7 +237,7 @@ nomatch_retry:
  */
 int fnmatch(const char *pat, const char *str, int flags)
 {
-	const wchar_t *wpat, *wstr;
+	wchar_t *wpat, *wstr;
 	wchar_t pbuf[128];
 	wchar_t sbuf[128];
 	int plen = strlen(pat);
@@ -264,4 +265,3 @@ int fnmatch(const char *pat, const char *str, int flags)
 }
 
 #endif
-

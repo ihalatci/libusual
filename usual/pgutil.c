@@ -278,7 +278,7 @@ failed:
 #define long uintptr_t
 
 /* include gperf code */
-const char *pg_keyword_lookup_real(const char *str, unsigned int len);
+const char *pg_keyword_lookup_real(const char *str, size_t len);
 #include <usual/pgutil_kwlookup.h>
 
 bool pg_is_reserved_word(const char *str)
@@ -286,4 +286,3 @@ bool pg_is_reserved_word(const char *str)
 	const char *kw = pg_keyword_lookup_real(str, strlen(str));
 	return kw != NULL;
 }
-

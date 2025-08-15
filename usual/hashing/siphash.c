@@ -16,6 +16,7 @@
 
 #include <usual/hashing/siphash.h>
 
+#include <usual/crypto/csrandom.h>
 #include <usual/endian.h>
 #include <usual/bits.h>
 
@@ -59,12 +60,19 @@ uint64_t siphash24(const void *data, size_t len, uint64_t k0, uint64_t k1)
 	m = (uint64_t)len << 56;
 	switch (len & 7) {
 	case 7: m |= (uint64_t)s[6] << 48;
+		/* fallthrough */
 	case 6: m |= (uint64_t)s[5] << 40;
+		/* fallthrough */
 	case 5: m |= (uint64_t)s[4] << 32;
+		/* fallthrough */
 	case 4: m |= (uint64_t)s[3] << 24;
+		/* fallthrough */
 	case 3: m |= (uint64_t)s[2] << 16;
+		/* fallthrough */
 	case 2: m |= (uint64_t)s[1] <<  8;
-	case 1: m |= (uint64_t)s[0]; break;
+		/* fallthrough */
+	case 1: m |= (uint64_t)s[0];
+		break;
 	case 0: break;
 	}
 	sip_compress(2);
@@ -79,11 +87,10 @@ uint64_t siphash24_secure(const void *data, size_t len)
 	static uint64_t k0, k1;
 
 	if (!initialized) {
-		k0 = ((uint64_t)random() << 32) | random();
-		k1 = ((uint64_t)random() << 32) | random();
+		k0 = ((uint64_t)csrandom() << 32) | csrandom();
+		k1 = ((uint64_t)csrandom() << 32) | csrandom();
 		initialized = true;
 	}
 
 	return siphash24(data, len, k0, k1);
 }
-

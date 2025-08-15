@@ -1,4 +1,3 @@
-
 #include <usual/pgutil.h>
 
 #include "test_common.h"
@@ -121,7 +120,7 @@ static char *aparse(const char *src)
 	struct StrList *sl = pg_parse_array(src, NULL);
 	static char buf[1024];
 	char *dst = buf;
-	const char *s;
+	char *s;
 	int len;
 	bool first = true;
 
@@ -134,7 +133,7 @@ static char *aparse(const char *src)
 			*dst++ = ':';
 		s = strlist_pop(sl);
 		if (!s) {
-			strcpy(dst, "NULL");
+			memcpy(dst, "NULL", 5);
 			dst += 4;
 		} else {
 			len = strlen(s);
@@ -190,4 +189,3 @@ struct testcase_t pgutil_tests[] = {
 	{ "pg_parse_array", test_parse_array },
 	END_OF_TESTCASES
 };
-

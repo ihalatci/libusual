@@ -14,7 +14,7 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- */ 
+ */
 
 #include <usual/fileutil.h>
 
@@ -36,24 +36,33 @@ void *load_file(const char *fn, size_t *len_p)
 	char *buf = NULL;
 	int res;
 	FILE *f;
-
-	res = stat(fn, &st);
-	if (res < 0)
-		return NULL;
-
-	buf = malloc(st.st_size + 1);
-	if (!buf)
-		return NULL;
+	int save_errno;
 
 	f = fopen(fn, "r");
-	if (!f) {
-		free(buf);
+	if (!f)
+		return NULL;
+
+	res = fstat(fileno(f), &st);
+	if (res < 0) {
+		save_errno = errno;
+		fclose(f);
+		errno = save_errno;
+		return NULL;
+	}
+
+	buf = malloc(st.st_size + 1);
+	if (!buf) {
+		save_errno = errno;
+		fclose(f);
+		errno = save_errno;
 		return NULL;
 	}
 
 	if ((res = fread(buf, 1, st.st_size, f)) < 0) {
+		save_errno = errno;
 		free(buf);
 		fclose(f);
+		errno = save_errno;
 		return NULL;
 	}
 
@@ -174,4 +183,3 @@ int getline(char **line_p, size_t *size_p, void *_f)
 	}
 }
 #endif
-

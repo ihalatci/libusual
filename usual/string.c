@@ -18,11 +18,6 @@
 
 #include <usual/string.h>
 
-#include <usual/mbuf.h>
-#include <usual/statlist.h>
-#include <usual/ctype.h>
-#include <usual/bytemap.h>
-
 #include <locale.h>
 #ifdef HAVE_XLOCALE_H
 #include <xlocale.h>
@@ -30,6 +25,11 @@
 #ifdef HAVE_LANGINFO_H
 #include <langinfo.h>
 #endif
+
+#include <usual/mbuf.h>
+#include <usual/statlist.h>
+#include <usual/ctype.h>
+#include <usual/bytemap.h>
 
 /*
  * Dynamic list of strings.
@@ -42,7 +42,7 @@ struct StrList {
 
 struct StrItem {
 	struct List node;
-	const char *str;
+	char *str;
 };
 
 bool strlist_empty(struct StrList *slist)
@@ -52,7 +52,7 @@ bool strlist_empty(struct StrList *slist)
 
 bool strlist_append(struct StrList *slist, const char *str)
 {
-	const char *nstr = NULL;
+	char *nstr = NULL;
 	bool ok;
 	if (str) {
 		nstr = cx_strdup(slist->ca, str);
@@ -65,7 +65,7 @@ bool strlist_append(struct StrList *slist, const char *str)
 	return ok;
 }
 
-bool strlist_append_ref(struct StrList *slist, const char *str)
+bool strlist_append_ref(struct StrList *slist, char *str)
 {
 	struct StrItem *item = cx_alloc(slist->ca, sizeof(*item));
 	if (!item)
@@ -76,11 +76,11 @@ bool strlist_append_ref(struct StrList *slist, const char *str)
 	return true;
 }
 
-const char *strlist_pop(struct StrList *slist)
+char *strlist_pop(struct StrList *slist)
 {
 	struct StrItem *item;
 	struct List *el;
-	const char *str;
+	char *str;
 
 	el = statlist_pop(&slist->list);
 	if (!el)
@@ -104,7 +104,7 @@ struct StrList *strlist_new(CxMem *ca)
 
 void strlist_free(struct StrList *slist)
 {
-	const char *s;
+	char *s;
 	if (!slist)
 		return;
 	while (!strlist_empty(slist)) {
@@ -213,6 +213,34 @@ size_t strlcat(char *dst, const char *src, size_t n)
 	while (pos < n && dst[pos])
 		pos++;
 	return pos + strlcpy(dst + pos, src, n - pos);
+}
+#endif
+
+char *strpcpy(char *dst, const char *src, size_t n)
+{
+	if (n == 0)
+		return NULL;
+	for (; n > 0; n--, dst++, src++) {
+		if ((*dst = *src) == '\0')
+			return dst;
+	}
+	dst[-1] = '\0';
+	return NULL;
+}
+
+char *strpcat(char *dst, const char *src, size_t n)
+{
+	size_t dstlen = strnlen(dst, n);
+	if (dstlen < n)
+		return strpcpy(dst + dstlen, src, n - dstlen);
+	return NULL;
+}
+
+#ifndef HAVE_MEMPCPY
+void *mempcpy(void *dst, const void *src, size_t n)
+{
+	memcpy(dst, src, n);
+	return (char *)(dst) + n;
 }
 #endif
 
@@ -640,3 +668,26 @@ int vasprintf(char **dst_p, const char *fmt, va_list ap)
 
 #endif
 
+#ifndef HAVE_STRNLEN
+
+size_t strnlen(const char *string, size_t maxlen)
+{
+	const char *end = memchr(string, '\0', maxlen);
+	return end ? (size_t)(end - string) : maxlen;
+}
+
+#endif
+
+/*
+ * Same as strcmp, but handles NULLs. If both sides are NULL, returns "true".
+ */
+bool strcmpeq(const char *str_left, const char *str_right)
+{
+	if (str_left == NULL && str_right == NULL)
+		return true;
+
+	if (str_left == NULL || str_right == NULL)
+		return false;
+
+	return strcmp(str_left, str_right) == 0;
+}

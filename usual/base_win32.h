@@ -1,12 +1,12 @@
 /*
  * Random win32 compat.
- * 
+ *
  * Copyright (c) 2007-2009  Marko Kreen, Skype Technologies OÜ
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -34,6 +34,15 @@
 #ifndef EINPROGRESS
 #define EINPROGRESS WSAEWOULDBLOCK /* WSAEINPROGRESS */
 #endif
+#ifndef SHUT_RDWR
+#define SHUT_RDWR SD_BOTH
+#endif
+#ifndef ENOTCONN
+#define ENOTCONN WSAENOTCONN
+#endif
+#ifndef ECONNRESET
+#define ECONNRESET WSAECONNRESET
+#endif
 
 #undef EAGAIN
 #define EAGAIN WSAEWOULDBLOCK /* WSAEAGAIN */
@@ -42,15 +51,19 @@
 #define EAFNOSUPPORT ENOSYS
 #endif
 
+#ifndef AI_ADDRCONFIG
+#define AI_ADDRCONFIG 0
+#endif
+
 /* dummy types / functions */
 #define hstrerror strerror
 #define getuid() (6667)
 #define setsid() getpid()
 #define setgid(x) (-1)
 #define setuid(x) (-1)
-#define fork() (-1)
+#define fork() (errno = ENOSYS, -1)
 #define geteuid() getuid()
-#define setgroups(s, p) (-1)
+static inline int setgroups(int ngroups, const gid_t *gidsets) { errno = EINVAL; return -1; }
 #define chown(f, u, g) (-1)
 
 #define srandom(s) srand(s)
@@ -143,12 +156,5 @@ static inline struct group *getgrgid(gid_t gid) { return NULL; }
 #define PRIX64	"I64X"
 
 #endif
-
-#define PRIdZ	"Id"
-#define PRIiZ	"Ii"
-#define PRIoZ	"Io"
-#define PRIuZ	"Iu"
-#define PRIxZ	"Ix"
-#define PRIXZ	"IX"
 
 #endif

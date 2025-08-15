@@ -161,8 +161,8 @@ PACKAGE_NAME ?= package
 PACKAGE_TARNAME ?= $(PACKAGE_NAME)
 PACKAGE_VERSION ?= 0.0
 PACKAGE_STRING ?= $(PACKAGE_NAME) $(PACKAGE_VERSION)
-PACKAGE_URL ?= 
-PACKAGE_BUGREPORT ?= 
+PACKAGE_URL ?=
+PACKAGE_BUGREPORT ?=
 
 PORTNAME ?= unix
 EXEEXT ?=
@@ -477,7 +477,10 @@ endef
 # 1-tgt, 2-name, 3-srcext
 define LangObjTarget
 $(trace3)
-$$(OBJDIR)/$(1)/%$(OBJEXT) $$(OBJDIR)/$(1)/%.lo: %$(3)
+$$(OBJDIR)/$(1)/%$(OBJEXT): %$(3)
+	@$$(call MkDir,$$(dir $$@))
+	$$(AM_LANG_$(2)_COMPILE)
+$$(OBJDIR)/$(1)/%.lo: %$(3)
 	@$$(call MkDir,$$(dir $$@))
 	$$(AM_LANG_$(2)_COMPILE)
 endef
@@ -552,7 +555,7 @@ SourceObjs = $(trace1)$(call SourceObjsExt,$(1),$(OBJEXT),$(2))
 SourceObjsExt = $(addprefix $(call JoinPath,$(OBJDIR),$(1))/, $(call ReplaceExts,$(AM_SRCEXTS),$(2),$(3)))
 
 # dependency files from object files, must match OBJDEPS
-DepFiles = $(wildcard $(addsuffix .d,$(1)))
+DepFiles = $(sort $(wildcard $(addsuffix .d,$(1))))
 
 # per-target var override, 1=target, 2=varname
 # if foo_VAR exists, expand to:
@@ -871,6 +874,12 @@ install_$(1): $(2)
 # hack to pass -rpath to LTLIBRARIES on build time (1)
 $(2): AM_DEST = $$($(1)_DEST)
 
+# simple uninstall - just remove files
+.PHONY: uninstall_$(1)
+uninstall: uninstall_$(1)
+uninstall_$(1):
+	$$(RM) $$(DESTDIR)$$($(1)_DEST)/$$(notdir $(2))
+
 endef
 
 # hack to pass -rpath to LTLIBRARIES on build time (2)
@@ -1096,13 +1105,14 @@ else
 all: sub-all all-local
 clean: sub-clean clean-local
 install: sub-install install-local
+uninstall: sub-uninstall uninstall-local
 distclean: sub-distclean distclean-local
 maintainer-clean: sub-maintainer-clean maintainer-clean-local
 .PHONY: all clean install dist distclean maintainer-clean
 
 # -local are empty targets by default
-.PHONY: all-local clean-local install-local distclean-local maintainer-clean-local
-all-local clean-local install-local distclean-local maintainer-clean-local:
+.PHONY: all-local clean-local install-local uninstall-local distclean-local maintainer-clean-local
+all-local clean-local install-local uninstall-local distclean-local maintainer-clean-local:
 
 ##
 ## Actual embedding starts
@@ -1274,7 +1284,7 @@ define SubTarget
 	$(E) "<--" "$(call JoinPath,$(SUBLOC),$(1))"
 endef
 
-sub-all sub-install sub-clean:
+sub-all sub-install sub-uninstall sub-clean:
 	$(foreach dir,$(SUBDIRS),$(call SubTarget,$(dir),$(subst sub-,,$@))$(NewLine))
 
 # Avoid double dirs in DIST_SUBDIRS, without changing order
@@ -1310,10 +1320,10 @@ define MakeDist
 	$(E) "CHECK" $@
 	$(Q) $(MAKE) -s am-check-distfiles
 	$(E) "MKDIR" $(AM_DIST_BASE)
-	$(Q) $(RM) -r -- $(AM_DIST_BASE) $(AM_DIST_BASE).$(AM_DIST_$(1)_EXT)
+	$(Q) $(RM) -r -- $(AM_DIST_BASE) $(AM_DIST_BASE).$(AM_FORMAT_$(1)_EXT)
 	$(Q) $(call MkDir,$(AM_DIST_BASE))
 	$(E) "COPY" $(AM_DIST_BASE)
-	$(Q) $(MAKE) -s am-show-distfiles | cpio -pmdL --quiet $(AM_DIST_BASE)
+	$(Q) $(MAKE) -s am-show-distfiles | cpio -pmduL --quiet $(AM_DIST_BASE)
 	$(E) "PACK" $(AM_DIST_BASE).$(AM_FORMAT_$(1)_EXT)
 	$(Q) $(AM_FORMAT_$(1)_CMD)
 	$(Q) $(RM) -r -- $(AM_DIST_BASE)
@@ -1490,4 +1500,3 @@ help-dests:
 	$(foreach dst,$(AM_USED_DESTS),@$(call Printf,"  $(dst)dir = $($(dst)dir)\n") $(NewLine))
 
 endif # O=empty
-

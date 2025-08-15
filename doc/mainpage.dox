@@ -61,6 +61,7 @@
  * <tr><td>  <usual/endian.h>        </td><td>  Endianess conversion   </td></tr>
  * <tr><td>  <usual/misc.h>          </td><td>  Misc arithmetic   </td></tr>
  * <tr><td>  <usual/json.h>          </td><td>  Read/write JSON   </td></tr>
+ * <tr><td>  <usual/psrandom.h>      </td><td>  Pseudo-random functions   </td></tr>
  * <tr><td>  <usual/regex.h>         </td><td>  POSIX regex compat   </td></tr>
  * <tr><td>  <usual/pgutil.h>        </td><td>  PostgreSQL data formats   </td></tr>
  * <tr><td>  <usual/utf8.h>          </td><td>  Low-level UTF8 handling   </td></tr>
@@ -91,7 +92,6 @@
  * <tr><td>  <usual/slab.h>          </td><td>  Slab allocator for same-size objects   </td></tr>
  * <tr><td>  <usual/talloc.h>        </td><td>  Hierarchical allocator   </td></tr>
  * <tr><th colspan=2>  OS support  </th></tr>
- * <tr><td>  <usual/event.h>         </td><td>  libevent compat   </td></tr>
  * <tr><td>  <usual/daemon.h>        </td><td>  Process daemonization   </td></tr>
  * <tr><td>  <usual/fileutil.h>      </td><td>  Various file I/O tools   </td></tr>
  * <tr><td>  <usual/logging.h>       </td><td>  Logging framework for daemons   </td></tr>

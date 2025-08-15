@@ -14,7 +14,7 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- */ 
+ */
 
 #include <usual/cfparser.h>
 
@@ -53,8 +53,10 @@ static bool parse_ini_file_internal(const char *fn, cf_handler_f user_handler, v
 	bool ok;
 
 	buf = load_file(fn, NULL);
-	if (buf == NULL)
+	if (buf == NULL) {
+		log_error("could not load file \"%s\": %s", fn, strerror(errno));
 		return false;
+	}
 
 	p = buf;
 	while (*p) {
@@ -87,8 +89,10 @@ static bool parse_ini_file_internal(const char *fn, cf_handler_f user_handler, v
 			log_debug("processing include: %s", val);
 			ok = parse_ini_file_internal(val, user_handler, arg, inclevel + 1);
 			val[vlen] = o1;
-			if (!ok)
+			if (!ok) {
+				log_error("error processing include file in configuration (%s:%d), stopping loading", fn, count_lines(buf, p));
 				goto failed;
+			}
 			log_debug("returned to processing file %s", fn);
 			continue;
 		}
@@ -109,9 +113,12 @@ static bool parse_ini_file_internal(const char *fn, cf_handler_f user_handler, v
 
 			log_debug("parse_ini_file: [%s]", key);
 			ok = user_handler(arg, true, key, NULL);
-			*p++ = o1;
-			if (!ok)
+			if (!ok) {
+				log_error("invalid section \"%s\" in configuration (%s:%d)",
+					  key, fn, count_lines(buf, p));
 				goto failed;
+			}
+			*p++ = o1;
 			continue;
 		}
 
@@ -120,9 +127,22 @@ static bool parse_ini_file_internal(const char *fn, cf_handler_f user_handler, v
 			break;
 
 		/* read key val */
-		key = p;
-		while (*p && (isalnum(*p) || strchr("_.-*", *p))) p++;
-		klen = p - key;
+		if (*p && *p == '\''){
+			key = ++p;
+			while (*p && *p != '\'') p++;
+			if (*p != '\''){
+				goto syntax_error;
+			} else{
+				klen = p - key;
+				if (klen <= 0)
+					goto syntax_error;
+				p++;
+			}
+		} else {
+			key = p;
+			while (*p && (isalnum(*p) || strchr("_.-*", *p))) p++;
+			klen = p - key;
+		}
 
 		/* expect '=', skip it */
 		while (*p && (*p == ' ' || *p == '\t')) p++;
@@ -155,6 +175,10 @@ static bool parse_ini_file_internal(const char *fn, cf_handler_f user_handler, v
 		ok = user_handler(arg, false, key, val);
 
 		log_debug("parse_ini_file: '%s' = '%s' ok:%d", key, val, ok);
+
+		if (!ok)
+			log_error("invalid value \"%s\" for parameter %s in configuration (%s:%d)",
+				  val, key, fn, count_lines(buf, p));
 
 		/* restore data, to keep count_lines() working */
 		key[klen] = o1;
@@ -215,7 +239,7 @@ static const struct CfKey *find_key(const struct CfSect *s, const char *key)
 		if (strcmp(k->key_name, key) == 0)
 			return k;
 	}
-	return k;
+	return NULL;
 }
 
 const char *cf_get(const struct CfContext *cf, const char *sect, const char *key,
@@ -268,7 +292,7 @@ bool cf_set(const struct CfContext *cf, const char *sect, const char *key, const
 	/* find section */
 	s = find_sect(cf, sect);
 	if (!s) {
-		log_error("Unknown section: %s", sect);
+		log_error("unknown section: %s", sect);
 		return false;
 	}
 
@@ -284,7 +308,7 @@ bool cf_set(const struct CfContext *cf, const char *sect, const char *key, const
 	/* set fixed key */
 	k = find_key(s, key);
 	if (!k) {
-		log_error("Unknown parameter: %s/%s", sect, key);
+		log_error("unknown parameter: %s/%s", sect, key);
 		return false;
 	}
 	if (!k->op.setter || (k->flags & CF_READONLY)) {
@@ -297,7 +321,7 @@ bool cf_set(const struct CfContext *cf, const char *sect, const char *key, const
 	}
 	p = get_dest(base, k);
 	if (!p) {
-		log_error("Bug - no base for relative key: %s/%s", sect, key);
+		log_error("bug - no base for relative key: %s/%s", sect, key);
 		return false;
 	}
 	cv.key_name = k->key_name;
@@ -314,7 +338,7 @@ bool cf_set(const struct CfContext *cf, const char *sect, const char *key, const
 
 struct LoaderCtx {
 	const struct CfContext *cf;
-	const char *cur_sect;
+	char *cur_sect;
 	void *top_base;
 	bool got_main_sect;
 };
@@ -358,8 +382,7 @@ static bool load_handler(void *arg, bool is_sect, const char *key, const char *v
 	struct LoaderCtx *ctx = arg;
 
 	if (is_sect) {
-		if (ctx->cur_sect)
-			free(ctx->cur_sect);
+		free(ctx->cur_sect);
 		ctx->cur_sect = strdup(key);
 		if (!ctx->cur_sect)
 			return false;
@@ -380,8 +403,7 @@ bool cf_load_file(const struct CfContext *cf, const char *fn)
 	ctx.cf = cf;
 
 	ok = parse_ini_file(fn, load_handler, &ctx);
-	if (ctx.cur_sect)
-		free(ctx.cur_sect);
+	free(ctx.cur_sect);
 	if (ok && !ctx.got_main_sect) {
 		log_error("load_init_file: main section missing from config file");
 		return false;
@@ -438,8 +460,7 @@ bool cf_set_str(struct CfValue *cv, const char *value)
 		log_error("cf_set_str: no mem");
 		return false;
 	}
-	if (*dst_p)
-		free(*dst_p);
+	free(*dst_p);
 	*dst_p = tmp;
 	return true;
 }
@@ -495,8 +516,7 @@ bool cf_set_filename(struct CfValue *cv, const char *value)
 
 	log_debug("expanded '%s' -> '%s'", value, tmp);
 
-	if (*dst_p)
-		free(*dst_p);
+	free(*dst_p);
 	*dst_p = tmp;
 	return true;
 fail:
@@ -608,4 +628,3 @@ bool cf_set_lookup(struct CfValue *cv, const char *value)
 	}
 	return false;
 }
-

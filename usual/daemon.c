@@ -2,11 +2,11 @@
  * Daemonization & pidfile handling.
  *
  * Copyright (c) 2007-2009  Marko Kreen, Skype Technologies OÜ
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -95,15 +95,15 @@ fail:
 		goto intr_loop;
 	if (errno == ENOENT || errno == ESRCH)
 		return false;
-	fatal_perror("signal_pidfile: Unexpected error");
+	fatal_perror("signal_pidfile: unexpected error");
 }
 
 static void check_pidfile(const char *pidfile)
 {
 	if (signal_pidfile(pidfile, 0))
-		fatal("pidfile exists, another instance running?");
+		die("pidfile exists, another instance running?");
 	if (errno == ESRCH) {
-		log_info("Stale pidfile, removing");
+		log_info("stale pidfile, removing");
 		unlink(pidfile);
 	}
 }
@@ -119,11 +119,10 @@ static void write_pidfile(const char *pidfile, bool first_write)
 	if (!pidfile || !pidfile[0])
 		return;
 
-	if (g_pidfile)
-		free(g_pidfile);
+	free(g_pidfile);
 	g_pidfile = strdup(pidfile);
 	if (!g_pidfile)
-		fatal_perror("cannot alloc pidfile");
+		die("out of memory");
 
 	pid = getpid();
 	snprintf(buf, sizeof(buf), "%u\n", (unsigned)pid);
@@ -134,14 +133,14 @@ static void write_pidfile(const char *pidfile, bool first_write)
 
 	fd = open(pidfile, flags, 0644);
 	if (fd < 0)
-		fatal_perror("Cannot write pidfile: '%s'", pidfile);
+		die("could not open pidfile '%s': %s", pidfile, strerror(errno));
 	len = strlen(buf);
 loop:
 	res = write(fd, buf, len);
 	if (res < 0) {
 		if (errno == EINTR)
 			goto loop;
-		fatal_perror("Write to pidfile failed: '%s'", pidfile);
+		die("write to pidfile '%s' failed: %s", pidfile, strerror(errno));
 	} else if (res < len) {
 		len -= res;
 		goto loop;
@@ -185,7 +184,7 @@ void daemonize(const char *pidfile, bool go_background)
 	/* send stdin, stdout, stderr to /dev/null */
 	fd = open("/dev/null", O_RDWR);
 	if (fd < 0)
-		fatal_perror("/dev/null");
+		die("could not open /dev/null: %s", strerror(errno));
 	dup2(fd, 0);
 	dup2(fd, 1);
 	dup2(fd, 2);
@@ -195,22 +194,21 @@ void daemonize(const char *pidfile, bool go_background)
 	/* fork new process */
 	pid = fork();
 	if (pid < 0)
-		fatal_perror("fork");
+		die("fork failed: %s", strerror(errno));
 	if (pid > 0)
 		_exit(0);
 
 	/* create new session */
 	pid = setsid();
 	if (pid < 0)
-		fatal_perror("setsid");
+		die("setsid: %s", strerror(errno));
 
 	/* fork again to avoid being session leader */
 	pid = fork();
 	if (pid < 0)
-		fatal_perror("fork");
+		die("fork failed; %s", strerror(errno));
 	if (pid > 0)
 		_exit(0);
 
 	write_pidfile(pidfile, false);
 }
-

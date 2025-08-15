@@ -258,7 +258,7 @@ static inline char *plain_copy(char *dst, const char *src, const char *endptr)
 _PRINTF(2,0)
 static void format_err(struct JsonContext *ctx, const char *errmsg, va_list ap)
 {
-	char buf[128];
+	char buf[119];
 	if (ctx->lasterr)
 		return;
 	vsnprintf(buf, sizeof(buf), errmsg, ap);
@@ -456,7 +456,7 @@ static enum ParseState close_container(struct JsonContext *ctx, enum ParseState 
 
 /* parse 4-char token */
 static bool parse_char4(struct JsonContext *ctx, const char **src_p, const char *end,
-			        uint32_t t_exp, enum JsonValueType type, bool val)
+			uint32_t t_exp, enum JsonValueType type, bool val)
 {
 	const char *src;
 	uint32_t t_got;
@@ -738,11 +738,11 @@ static bool parse_string(struct JsonContext *ctx, const char **src_p, const char
 
 static bool skip_comment(struct JsonContext *ctx, const char **src_p, const char *end)
 {
-	const char *s, *start;
+	const char *s;
 	char c;
 	size_t lnr;
 
-	s = start = *src_p;
+	s = *src_p;
 	if (s >= end)
 		return false;
 	c = *s++;
@@ -923,6 +923,7 @@ static bool parse_tokens(struct JsonContext *ctx, const char *src, const char *e
 		case '/':
 			if (relaxed && skip_comment(ctx, &src, end))
 				continue;
+			/* fallthrough */
 		default:
 			return err_false(ctx, "Invalid symbol: '%c'", c);
 		}
@@ -1782,4 +1783,3 @@ void json_set_options(struct JsonContext *ctx, unsigned int options)
 {
 	ctx->options = options;
 }
-

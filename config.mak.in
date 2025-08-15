@@ -32,6 +32,9 @@ GREP = @GREP@
 EGREP = @EGREP@
 STRIP = @STRIP@
 
+LIBEVENT_CFLAGS = @LIBEVENT_CFLAGS@
+LIBEVENT_LIBS = @LIBEVENT_LIBS@
+
 TLS_CPPFLAGS = @TLS_CPPFLAGS@
 TLS_LDFLAGS = @TLS_LDFLAGS@
 TLS_LIBS = @TLS_LIBS@
@@ -57,5 +60,3 @@ nosub_top_srcdir ?= @top_srcdir@
 nosub_top_builddir ?= @top_builddir@
 
 enable_debug = @enable_debug@
-
-

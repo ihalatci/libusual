@@ -1,4 +1,3 @@
-
 #include <usual/base.h>
 
 #include "test_common.h"
@@ -74,13 +73,20 @@ static void test_misc(void *_p)
 end:;
 }
 
+#pragma GCC diagnostic push
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 9
+#pragma GCC diagnostic ignored "-Walloc-size-larger-than="
+#endif
+
 static void test_reallocarray(void *_p)
 {
 	void *p;
 	p = reallocarray(NULL, 1, 1); tt_assert(p); free(p);
-	p = reallocarray(NULL, LLONG_MAX, LLONG_MAX); tt_assert(p == NULL);
+	p = reallocarray(NULL, SIZE_MAX, SIZE_MAX); tt_assert(p == NULL);
 end:;
 }
+
+#pragma GCC diagnostic pop
 
 struct testcase_t base_tests[] = {
 	{ "ptr", test_ptr },
@@ -88,4 +94,3 @@ struct testcase_t base_tests[] = {
 	{ "reallocarray", test_reallocarray },
 	END_OF_TESTCASES
 };
-

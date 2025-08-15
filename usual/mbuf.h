@@ -122,7 +122,7 @@ static inline unsigned mbuf_consumed(const struct MBuf *buf)
 }
 
 /** Return pointer to data area. */
-static inline const void *mbuf_data(const struct MBuf *buf)
+static inline void *mbuf_data(const struct MBuf *buf)
 {
 	return buf->data;
 }
@@ -266,7 +266,8 @@ static inline bool mbuf_write(struct MBuf *buf, const void *ptr, unsigned len)
 	if (buf->write_pos + len > buf->alloc_len
 	    && !mbuf_make_room(buf, len))
 		return false;
-	memcpy(buf->data + buf->write_pos, ptr, len);
+	if (len > 0)
+		memcpy(buf->data + buf->write_pos, ptr, len);
 	buf->write_pos += len;
 	return true;
 }
@@ -336,4 +337,3 @@ static inline bool mbuf_slice(struct MBuf *src, unsigned len, struct MBuf *dst)
 }
 
 #endif
-

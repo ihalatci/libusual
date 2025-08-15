@@ -18,10 +18,10 @@ _USUAL_DIR = $(call JoinPath,$(srcdir),$(USUAL_DIR))
 _USUAL_DIR2 = $(call JoinPath,$(_USUAL_DIR),usual)
 
 # module names from sources (plus headers)
-UsualMods = $(trace1)$(shell $(_USUAL_DIR)/find_modules.sh $(_USUAL_DIR) $(wildcard $(addprefix $(srcdir)/,$(1))))
+UsualMods = $(trace1)$(shell $(_USUAL_DIR)/find_modules.sh $(_USUAL_DIR) $(sort $(wildcard $(addprefix $(srcdir)/,$(1)))))
 
 # full-path sources based on module list
-UsualSrcsFull = $(trace1)$(wildcard $(addprefix $(_USUAL_DIR2)/,$(addsuffix *.[ch],$(1))))
+UsualSrcsFull = $(trace1)$(sort $(wildcard $(addprefix $(_USUAL_DIR2)/,$(addsuffix *.[ch],$(1)))))
 
 # remove USUAL_DIR
 UsualStrip = $(trace1)$(subst $(_USUAL_DIR)/,,$(1))
@@ -48,14 +48,6 @@ EXTRA_$(1)_SOURCES := $$(EXTRA_$(1)_SOURCES) \
 
 $(1)_CPPFLAGS += -I$$(USUAL_DIR)
 
-# add libusual to vpath
-$(IFEQ) ($$(filter $$(USUAL_DIR),$$(VPATH)),)
-VPATH += $$(USUAL_DIR)
-$(IFNEQ) ($$(srcdir),$$(builddir),)
-VPATH += $$(call JoinPath,$$(srcdir),$$(USUAL_DIR))
-$(ENDIF)
-$(ENDIF)
-
 $(ENDIF)
 
 endef
@@ -63,4 +55,3 @@ endef
 AM_TARGET_HOOKS += EmbedLibUsual
 
 EXTRA_DIST += $(_USUAL_DIR)/find_modules.sh $(_USUAL_DIR)/usual/config.h.in
-

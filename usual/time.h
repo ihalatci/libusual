@@ -14,7 +14,7 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- */ 
+ */
 
 /** * @file
  *
@@ -42,10 +42,10 @@ typedef uint64_t usec_t;
 /** How many microseconds in a second. */
 #define USEC ((usec_t)1000000)
 
-/** Convert usec timestamp to ISO timestamp with millisecond precision: YYYY-mm-dd hh:mm:ss.SSS */
-char *format_time_ms(usec_t time, char *dst, unsigned dstlen);
-/** Convert usec timestamp to ISO timestamp with second precision: YYYY-mm-dd hh:mm:ss */
-char *format_time_s(usec_t time, char *dst, unsigned dstlen);
+/** Convert usec timestamp to ISO timestamp with millisecond precision: YYYY-mm-dd hh:mm:ss.SSS TZ */
+char *format_time_ms(usec_t time, char *dest, unsigned destlen);
+/** Convert usec timestamp to ISO timestamp with second precision: YYYY-mm-dd hh:mm:ss TZ */
+char *format_time_s(usec_t time, char *dest, unsigned destlen);
 
 /** Query system time */
 usec_t get_time_usec(void);
@@ -68,12 +68,13 @@ int gettimeofday(struct timeval * tp, void * tzp);
 
 
 #ifndef HAVE_LOCALTIME_R
-#define localtime_r(t,b) usual_localtime_r(t,b)
+#define localtime_r(t,r) usual_localtime_r(t,r)
 
 /** Compat: localtime_r() */
-struct tm *localtime_r(const time_t *tp, struct tm *buf);
+struct tm *localtime_r(const time_t *tp, struct tm *result);
 
 #endif
+
 
 #ifndef HAVE_USLEEP
 #define usleep(x) usual_usleep(x)
@@ -84,7 +85,7 @@ static inline void usleep(long usec) { Sleep(usec / 1000); }
 #endif
 
 #ifndef HAVE_GETRUSAGE
-#define getrusage(w,d) usual_getrusage(w,d)
+#define getrusage(w,r) usual_getrusage(w,r)
 
 #define RUSAGE_SELF 0
 
@@ -95,9 +96,17 @@ struct rusage {
 };
 
 /** Compat: getrusage() for win32 */
-int getrusage(int who, struct rusage *dst);
+int getrusage(int who, struct rusage *r_usage);
 
 #endif
+
+#endif
+
+#ifndef HAVE_TIMEGM
+#define timegm(tm) usual_timegm(tm)
+
+/** Compat: timegm() */
+time_t timegm(struct tm *tm);
 
 #endif
 

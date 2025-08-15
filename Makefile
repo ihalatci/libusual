@@ -1,19 +1,22 @@
-
 AM_CPPFLAGS = -I$(builddir) -I$(srcdir) $(TLS_CPPFLAGS)
 AM_LDFLAGS = $(TLS_LDFLAGS)
 AM_LIBS = $(TLS_LIBS)
 
 # main target
-lib_LIBRARIES = libusual.a
+lib_LTLIBRARIES = libusual.la
 
 # sources that are not always built
-EXTRA_libusual_a_SOURCES = usual/pgsocket.h usual/pgsocket.c
+EXTRA_libusual_la_SOURCES = usual/pgsocket.h usual/pgsocket.c
+
+internal_headers = usual/pgutil_kwlookup.h \
+		   usual/tls/tls_compat.h \
+		   usual/tls/tls_internal.h
 
 # sources not in tar.gz
-nodist_EXTRA_libusual_a_SOURCES = usual/config.h
+nodist_EXTRA_libusual_la_SOURCES = usual/config.h
 
 # regular source files
-libusual_a_SOURCES = usual/config.h.in \
+libusual_la_SOURCES = usual/config.h.in \
 	usual/aatree.h usual/aatree.c \
 	usual/base.h usual/base.c usual/base_win32.h \
 	usual/bits.h \
@@ -38,7 +41,6 @@ libusual_a_SOURCES = usual/config.h.in \
 	usual/daemon.h usual/daemon.c \
 	usual/endian.h \
 	usual/err.h usual/err.c \
-	usual/event.h usual/event.c \
 	usual/fileutil.h usual/fileutil.c \
 	usual/fnmatch.h usual/fnmatch.c \
 	usual/getopt.h usual/getopt.c \
@@ -59,27 +61,34 @@ libusual_a_SOURCES = usual/config.h.in \
 	usual/misc.h \
 	usual/netdb.h usual/netdb.c \
 	usual/pgutil.h usual/pgutil.c usual/pgutil_kwlookup.h \
+	usual/psrandom.h usual/psrandom.c \
 	usual/pthread.h usual/pthread.c \
 	usual/regex.h usual/regex.c \
 	usual/safeio.h usual/safeio.c \
 	usual/shlist.h \
 	usual/signal.h usual/signal.c \
+	usual/slab_internal.c \
 	usual/slab.h usual/slab.c \
+	usual/slab_ts.h usual/slab_ts.c \
 	usual/socket.h usual/socket.c usual/socket_ntop.c usual/socket_pton.c usual/socket_win32.h \
+	usual/spinlock.h usual/spinlock.c \
 	usual/statlist.h \
+	usual/statlist_ts.h \
 	usual/string.h usual/string.c \
 	usual/strpool.h usual/strpool.c \
 	usual/talloc.h usual/talloc.c \
 	usual/time.h usual/time.c \
 	usual/tls/tls.h usual/tls/tls.c usual/tls/tls_internal.h \
-	usual/tls/tls_compat.h usual/tls/tls_compat.c \
-	usual/tls/tls_client.c usual/tls/tls_config.c usual/tls/tls_info.c \
+	usual/tls/tls_compat.h usual/tls/tls_compat.c usual/tls/tls_peer.c \
+	usual/tls/tls_client.c usual/tls/tls_config.c usual/tls/tls_ocsp.c \
 	usual/tls/tls_server.c usual/tls/tls_util.c usual/tls/tls_verify.c \
+	usual/tls/tls_cert.h usual/tls/tls_cert.c usual/tls/tls_conninfo.c \
 	usual/utf8.h usual/utf8.c \
 	usual/wchar.h usual/wchar.c
 
 # we want to filter headers, so cannot use usual install method via _HEADERS
-USUAL_HEADERS = $(filter %.h,$(libusual_a_SOURCES) $(nodist_EXTRA_libusual_a_SOURCES))
+USUAL_HEADERS = $(filter-out $(internal_headers), \
+		$(filter %.h,$(libusual_la_SOURCES) $(nodist_EXTRA_libusual_la_SOURCES)))
 
 # define aclocal destination
 aclocaldir = ${datarootdir}/aclocal
@@ -92,7 +101,7 @@ dist_aclocal_DATA = m4/usual.m4 m4/antimake.m4
 # test program for link-test
 noinst_PROGRAMS = test/compile
 test_compile_SOURCES = test/compile.c
-test_compile_LDADD = libusual.a
+test_compile_LDADD = libusual.la
 test_compile_LIBS = $(TLS_LIBS)
 
 # extra clean files
@@ -118,6 +127,7 @@ install-local:
 	@$(MKDIR_P) $(DESTDIR)$(includedir)/usual
 	@$(MKDIR_P) $(DESTDIR)$(includedir)/usual/hashing
 	@$(MKDIR_P) $(DESTDIR)$(includedir)/usual/crypto
+	@$(MKDIR_P) $(DESTDIR)$(includedir)/usual/tls
 	@for hdr in $(USUAL_HEADERS); do \
 		echo Filtering $$hdr; \
 		$(SED) -f mk/safe-headers.sed $$hdr \
@@ -151,20 +161,14 @@ dox:
 
 PG_CONFIG ?= pg_config
 KWLIST = $(shell $(PG_CONFIG) --includedir-server)/parser/kwlist.h
-GPERF = gperf -m5
 
 # requires 8.4+
 kws:
 	@test -f "$(KWLIST)" || { echo "kwlist.h not found"; exit 1; }
-	grep '^PG_KEYWORD' "$(KWLIST)" \
-	| grep -v UNRESERVED \
-	| sed 's/.*"\(.*\)",.*, *\(.*\)[)].*/\1/' \
-	>> usual/pgutil_kwlookup.gp
+	./mk/gen-pgutil_kwlookup_gp.sh "$(KWLIST)" >> usual/pgutil_kwlookup.gp
 
-kwh:
-	$(GPERF) usual/pgutil_kwlookup.g \
-	| sed '/^#line/d' \
-	> usual/pgutil_kwlookup.h
+kwh: usual/pgutil_kwlookup.g
+	./mk/gen-pgutil_kwlookup_h.sh $^ > usual/pgutil_kwlookup.h
 
 sizes: all
 	size `find .objs -name '.libs' -prune -o -name '*.o' -print | sort`
@@ -174,7 +178,7 @@ sizes: all
 
 .PHONY: tags
 tags:
-	ctags $(libusual_a_SOURCES)
+	ctags $(libusual_la_SOURCES)
 
 .PHONY: nodoc
 nodoc:
@@ -182,3 +186,5 @@ nodoc:
 	  grep -q "$$hdr" doc/mainpage.dox || echo "$$hdr" ; \
 	done
 
+check: all
+	$(MAKE) -C test check

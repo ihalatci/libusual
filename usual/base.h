@@ -74,15 +74,6 @@ typedef enum { true=1, false=0 } bool;
 #define DLLIMPORT
 #endif
 
-#ifndef PRIdZ
-#define PRIdZ	"zd"		/**< printf 'd' format specifier for ssize_t */
-#define PRIiZ	"zi"		/**< printf 'i' format specifier for ssize_t */
-#define PRIoZ	"zo"		/**< printf 'o' format specifier for size_t */
-#define PRIuZ	"zu"		/**< printf 'u' format specifier for size_t */
-#define PRIxZ	"zx"		/**< printf 'x' format specifier for size_t */
-#define PRIXZ	"zX"		/**< printf 'X' format specifier for size_t */
-#endif
-
 /** give offset of a field inside struct */
 #ifndef offsetof
 #define offsetof(type, field) ((unsigned long)&(((type *)0)->field))
@@ -156,15 +147,29 @@ typedef enum { true=1, false=0 } bool;
  */
 
 /** Pre-processor macro to check if compiler is GCC with high enough version */
-#define _COMPILER_GNUC(maj,min) (defined(__GNUC__) && \
-	  ((__GNUC__ > (maj)) || (__GNUC__ == (maj) && __GNUC_MINOR__ >= (min))))
+#if defined(__GNUC__)
+#define _COMPILER_GNUC(maj,min) ((__GNUC__ > (maj)) || (__GNUC__ == (maj) && __GNUC_MINOR__ >= (min)))
+#else
+#define _COMPILER_GNUC(maj,min) (0)
+#endif
 /** Pre-processor macro to check if compiler is CLANG with high enough version */
-#define _COMPILER_CLANG(maj,min) (defined(__clang__) && \
-	   ((__clang_major__ > (maj)) || (__clang_major__ == (maj) && __clang_minor__ >= (min))))
+#if defined(__clang__)
+#define _COMPILER_CLANG(maj,min) ((__clang_major__ > (maj)) || (__clang_major__ == (maj) && __clang_minor__ >= (min)))
+#else
+#define _COMPILER_CLANG(maj,min) (0)
+#endif
 /** Pre-processor macro to check if compiler is Visual C with high enough version */
-#define _COMPILER_MSC(ver) (defined(_MSC_VER) && (_MSC_VER >= (ver)))
+#if defined(_MSC_VER)
+#define _COMPILER_MSC(ver) (_MSC_VER >= (ver))
+#else
+#define _COMPILER_MSC(ver) (0)
+#endif
 /** Pre-processor macro to check if compiler is Intel CC with high enough version */
-#define _COMPILER_ICC(ver) (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= (ver)))
+#if defined(__INTEL_COMPILER)
+#define _COMPILER_ICC(ver) (__INTEL_COMPILER >= (ver))
+#else
+#define _COMPILER_ICC(ver) (0)
+#endif
 
 /*
  * clang compat
@@ -227,7 +232,11 @@ typedef enum { true=1, false=0 } bool;
 
 /** Check printf-style format and arg sanity */
 #if _COMPILER_GNUC(4,0) || __has_attribute(printf)
+#ifdef __MINGW32__
+#define _PRINTF(fmtpos, argpos) __attribute__((format(__MINGW_PRINTF_FORMAT, fmtpos, argpos)))
+#else
 #define _PRINTF(fmtpos, argpos) __attribute__((format(printf, fmtpos, argpos)))
+#endif
 #else
 #define _PRINTF(fmtpos, argpos)
 #endif
@@ -313,14 +322,6 @@ void log_fatal(const char *file, int line, const char *func, bool show_perror, v
 #endif
 #endif
 
-/* Fix posix bug by accepting const pointer.  */
-static inline void _const_free(const void *p)
-{
-	free((void *)p);
-}
-/** Compat: make free() accept const pointer */
-#define free(x) _const_free(x)
-
 /** Zeroing malloc */
 _MUSTCHECK
 static inline void *zmalloc(size_t len)
@@ -345,4 +346,3 @@ void *reallocarray(void *p, size_t count, size_t size);
 #endif
 
 #endif
-

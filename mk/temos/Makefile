@@ -33,12 +33,12 @@ html: $(HTML)
 
 am:
 	rm -f html/anti*
-	make
+	$(MAKE)
 
 ftest: clean qtest
 qtest: $(OUT)
 	@diff -urN expected output > regressions.diff || { \
-		less regressions.diff; \
+		cat regressions.diff; \
 		echo "FAIL: Result does not match expected output"; \
 		exit 1; \
 	}
@@ -69,4 +69,3 @@ html/index.html: index.txt
 html/antimake.html: ../antimake.txt
 	@mkdir -p html
 	asciidoc -a toc -o - $< | grep -v '^Last updated ' > $@
-

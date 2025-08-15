@@ -1,5 +1,6 @@
-
 SUBLOC = test/attregex
+
+AM_FEATURES = libusual
 
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir)
 VPATH = $(top_srcdir)
@@ -26,4 +27,3 @@ EXTRA_DIST = Makefile run.sh \
 test: $(EXTRA_PROGRAMS)
 
 include ../../build.mk
-

@@ -12,7 +12,7 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- */ 
+ */
 
 /** @file
  *
@@ -22,7 +22,6 @@
  * - win32: <winsock2.h>
  * - win32: <ws2tcpip.h>
  * - <sys/socket.h>
- * - <sys/poll.h>
  * - <sys/un.h>
  * - <netinet/in.h>
  * - <netinet/tcp.h>
@@ -49,9 +48,6 @@
 #endif
 #ifdef HAVE_POLL_H
 #include <poll.h>
-#endif
-#ifdef HAVE_SYS_POLL_H
-#include <sys/poll.h>
 #endif
 #ifdef HAVE_SYS_UIO_H
 #include <sys/uio.h>
@@ -104,15 +100,17 @@ bool socket_set_keepalive(int fd, int onoff, int keepidle, int keepintvl, int ke
  *
  * Supports: ipv4, ipv5, unix sockets.
  */
-const char *sa2str(const struct sockaddr *sa, char *buf, int buflen);
+const char *sa2str(const struct sockaddr *sa, char *buf, size_t buflen);
 
 #ifndef HAVE_INET_NTOP
+#undef inet_ntop
 #define inet_ntop(a,b,c,d) usual_inet_ntop(a,b,c,d)
 /** Compat: inet_ntop() */
 const char *inet_ntop(int af, const void *src, char *dst, int cnt);
 #endif
 
 #ifndef HAVE_INET_PTON
+#undef inet_pton
 #define inet_pton(a,b,c) usual_inet_pton(a,b,c)
 /** Compat: inet_pton() */
 int inet_pton(int af, const char *src, void *dst);
@@ -153,4 +151,3 @@ int socketpair(int d, int typ, int proto, int sv[2]);
 #endif
 
 #endif
-
